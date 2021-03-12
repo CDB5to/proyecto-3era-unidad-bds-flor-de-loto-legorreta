@@ -7,6 +7,10 @@ const userSchema = new Schema({
         type: String,
         required: [true, 'Favor de insertar el nombre.']
     },
+    srtrApellidos: {
+        type: String,
+        required: [true, 'Favor de insertar sus apellidos.']
+    },    
     nmbEdad: {
         type: Number,
         required: [true, 'Favor de insertar su edad.']
@@ -15,6 +19,7 @@ const userSchema = new Schema({
         type: String,
         required: [true, 'Favor de insertar su correo.']
     },
+    strDireccion: String,
     strTelefono: String,
     idMascota: {
         type: Schema.Types.ObjectId,

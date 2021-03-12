@@ -12,7 +12,7 @@ app.get('/', async(req, res) => {
         if (req.query.idUsuario) req.queryMatch._id = req.query.idUsuario;
         if (req.query.termino) req.queryMatch.$or = Helper(["strNombre", "strCorreo"], req.query.termino);
 
-        const usuario = await UsuarioModel.find({...req.queryMatch }).populate({ path: 'idMascota', select: { 'strNombre': 1, '_id': 0 } });
+        const usuario = await UsuarioModel.find({...req.queryMatch }).populate({ path: 'idproducto', select: { 'strNombre': 1, '_id': 0 } });
 
         if (usuario.length <= 0) {
             res.status(404).send({
@@ -40,7 +40,7 @@ app.get('/', async(req, res) => {
             msg: 'Error al obtener a los usuarios.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
-            }
+            } 
         });
     }
 });
@@ -233,7 +233,7 @@ app.delete('/', async(req, res) => {
               res.status(500).send({
                   estatus: '500',
                   err: true,
-                msg: 'Error: Error al eliminar la mascota.',
+                msg: 'Error: Error al eliminar la persona.',
                   cont: {
                     err: Ocject.keys(err).length === 0 ? err.message : err
             }    

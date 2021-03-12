@@ -2,16 +2,17 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const mascotaSchema = new Schema({
+const productoSchema = new Schema({
     strNombre: {
         type: String,
-        required: [true, 'Favor de insertar el nombre de la mascota.']
+        required: [true, 'Favor de insertar el nombre del producto.']
     },
-    strTipoAnimal: {
+    strTipoProducto: {
         type: String,
-        required: [true, 'Favor de insertar que tipo de animal es.']
+        required: [true, 'Favor de insertar que tipo de producto es.']
     },
     intEdad: Number,
+    strSexo: String,
     blnActivo: {
         type: Boolean,
         default: true
@@ -21,7 +22,7 @@ const mascotaSchema = new Schema({
         createdAt: 'created_at',
         updatedAt: 'updated_at'
     },
-    collection: "mascota"
+    collection: "producto"
 });
 
-module.exports = mongoose.model('Mascota', mascotaSchema);
+module.exports = mongoose.model('Producto', productoSchema);
