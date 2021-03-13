@@ -1,26 +1,24 @@
 /*jshint esversion: 9*/
-const UsuarioModel = require('../../models/usuario.model');
+const TiendaModel = require('../../models/tienda.model');
 const Helper = require("../../libraries/helper");
 const express = require('express');
 const app = express();
 
-const email = require('../../libraries/email');
-
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/tienda/
 app.get('/', async(req, res) => {
     try {
-        if (req.query.idUsuario) req.queryMatch._id = req.query.idUsuario;
-        if (req.query.termino) req.queryMatch.$or = Helper(["strNombre", "strCorreo"], req.query.termino);
+        if (req.query.idTienda) req.queryMatch._id = req.query.idTienda;
+        if (req.query.termino) req.queryMatch.$or = Helper(["strNombre", "strDireccion", "strUrlWeb"], req.query.termino);
 
-        const usuario = await UsuarioModel.find({...req.queryMatch }).populate({ path: 'idproducto', select: { 'strNombre': 1, '_id': 0 } });
+        const tienda = await TiendaModel.find({...req.queryMatch });
 
-        if (usuario.length <= 0) {
+        if (tienda.length <= 0) {
             res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'No se encontraron usuarios en la base de datos.',
+                msg: 'No se encontraron tiendas en la base de datos.',
                 cont: {
-                    usuario
+                    tienda
                 }
             });
         } else {
@@ -29,7 +27,7 @@ app.get('/', async(req, res) => {
                 err: false,
                 msg: 'Informacion obtenida correctamente.',
                 cont: {
-                    usuario
+                    tienda
                 }
             });
         }
@@ -37,61 +35,58 @@ app.get('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al obtener a los usuarios.',
+            msg: 'Error al obtener las tiendas.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
-            } 
+            }
         });
     }
 });
 
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/tienda/
 app.post('/', async(req, res) => {
 
     try {
-        const user = new UsuarioModel(req.body);
+        const tienda = new TiendaModel(req.body);
 
-        let err = user.validateSync();
+        let err = tienda.validateSync();
 
         if (err) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Error al Insertar el usuario.',
+                msg: 'Error: Error al Insertar la tienda.',
                 cont: {
                     err
                 }
             });
         }
 
-        const usuarioEncontrado = await UsuarioModel.findOne({ strCorreo: { $regex: `^${user.strCorreo}$`, $options: 'i' } });
-        if (usuarioEncontrado) return res.status(400).json({
+        const tiendaEncontrada = await TiendaModel.findOne({ strDireccion: { $regex: `^${tienda.strDireccion}$`, $options: 'i' } });
+        if (tiendaEncontrada) return res.status(400).json({
             ok: false,
             resp: 400,
-            msg: 'El correo del usuario que desea registrar ya se encuentra en uso.',
-            cont: {
-                Correo: usuarioEncontrado.strCorreo
-            }
+            msg: `La tienda que se desea insertar con la direccion ${tienda.strDireccion} ya se encuentra registrada en la base de datos.`,
+            cont: 0
         });
 
-        const usuario = await user.save();
-        if (usuario.length <= 0) {
+        const nuevaTienda = await tienda.save();
+        if (nuevaTienda.length <= 0) {
             res.status(400).send({
                 estatus: '400',
                 err: true,
-                msg: 'No se pudo registrar el usuario en la base de datos.',
+                msg: 'No se pudo registrar la tienda en la base de datos.',
                 cont: {
-                    usuario
+                    nuevaTienda
                 }
             });
         } else {
-            // email.sendEmail(req.body.strCorreo);
             res.status(200).send({
                 estatus: '200',
                 err: false,
                 msg: 'Informacion insertada correctamente.',
                 cont: {
-                    usuario
+                    nuevaTienda
                 }
             });
         }
@@ -99,7 +94,7 @@ app.post('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al registrar al usuario.',
+            msg: 'Error al registrar la tienda.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -107,138 +102,140 @@ app.post('/', async(req, res) => {
     }
 });
 
+// http://localhost:3000/api/tienda/?idTienda=603e51f51a35a066388f0f28
 app.put('/', async(req, res) => {
     try {
 
-        const idAnimalito = req.query.idPersona;
+        const idTienda = req.query.idTienda;
 
-        if(req.query.idPersona == '') {    
+        if (idTienda == '') {
+            return res.status(400).send({
+                estatus: '400',
+                err: true,
+                msg: 'Error: No se envio un id valido.',
+                cont: 0
+            });
+        }
 
-        return res.status(400).send({
-            estatus: '400',
-            err: true,
-            msg: 'Error: No se envió un id valido.',
-            cont: 0
-        });
-    } 
-    
-        req.body._id = idPersona;
+        req.body._id = idTienda;
 
-        const personaEncontrada = await MascotaModel.findById(idAnimalito);
+        const tiendaEncontrada = await TiendaModel.findById(idTienda);
 
-        if(!personaEncontrada)
-        return res.status(404).send({
-            estatus: '404',
-            err: true,
-msg: 'Error: No se encontro la persona en la base de datos.',
-            cont: personaEncontrada
-        });
+        if (!tiendaEncontrada)
+            return res.status(404).send({
+                estatus: '404',
+                err: true,
+                msg: 'Error: No se encontro la persona en la base de datos.',
+                cont: tiendaEncontrada
+            });
 
-    const newPersona = new UsuarioModel(req.body);        
+        const newTienda = new TiendaModel(req.body);
 
-            let err = newPersona.validate.Sync();
-        
-            if (err) {
+        let err = newTienda.validateSync();
+
+        if (err) {
             return res.status(400).json({
-            ok: false,
-            resp: 400,
-            msg: 'Error: Error al insertar la persona.',
-            cont: {
-                err
-            }
-        });    
-    }
+                ok: false,
+                resp: 400,
+                msg: 'Error: Error al actualizar la tienda.',
+                cont: {
+                    err
+                }
+            });
+        }
 
-    const personaActualizada = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: newPersona }, {new: true });
+        const tiendaActualizada = await TiendaModel.findByIdAndUpdate(idTienda, { $set: newTienda }, { new: true });
 
-    if(!personaActualizado) {
-        return res.status(400).json({
-            ok: false,
-            resp: 400,
-            msg: 'Error: Al intentar actualizar la persona.',
-            cont: 0
-         });    
-    } else {
-        return res.status(200).json({
-            ok: true,
-            resp: 200,
-            msg: 'Success: Se actualizo la persona correctamente.',
-            cont: {
-                personaActualizado
-            }
-        });
-    }
+        if (!tiendaActualizada) {
+            return res.status(400).json({
+                ok: false,
+                resp: 400,
+                msg: 'Error: Al intentar actualizar la tienda.',
+                cont: 0
+            });
+        } else {
+            return res.status(200).json({
+                ok: true,
+                resp: 200,
+                msg: 'Success: Se actualizo la persona correctamente.',
+                cont: {
+                    tiendaActualizada
+                }
+            });
+        }
 
     } catch (err) {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error: Error al actualizar la persona.',
+            msg: 'Error: Error al actualizar la tienda.',
             cont: {
-                err: Ocject.keys(err).length === 0 ? err.message : err
-            }    
+                err: Object.keys(err).length === 0 ? err.message : err
+            }
         });
     }
 });
 
+// http://localhost:3000/api/tienda/?idTienda=603e51f51a35a066388f0f28
 app.delete('/', async(req, res) => {
 
     try {
 
-        if(req.query.idPersona == '') {
+        if (req.query.idTienda == '') {
             return res.status(400).send({
                 estatus: '400',
                 err: true,
-                msg: 'Error: No se envió un id valido.',
+                msg: 'Error: No se envio un id valido.',
                 cont: 0
             });
-        } 
-        
-        idPersona = rea.query.idPersona;
-    
-        binActivo = req.body.binActivo;
+        }
 
-            const personaEncontrada = await UsuarioModel.findById(idPersona);
-    
-            if(!personaEncontrada)
+        idTienda = req.query.idTienda;
+        blnActivo = req.body.blnActivo;
+
+        const tiendaEncontrada = await TiendaModel.findById(idTienda);
+
+        if (!tiendaEncontrada)
             return res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'Error: No se encontro la mascota en la base de datos.',
-                cont: personaEncontrada
+                msg: 'Error: No se encontro la tienda en la base de datos.',
+                cont: tiendaEncontrada
             });
 
-    const personaActualizado = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: { binActivo }}, { new: true });
+        const tiendaActualizada = await TiendaModel.findByIdAndUpdate(idTienda, { $set: { blnActivo } }, { new: true });
 
-          if (!personaActualizado) {
-                return res.status(400).json({
-                    ok: false,
-                    resp: 400,
-                    msg: 'Error: Al intentar eliminar la persona.',
-                    cont: 0
-                });
-            } else {
-                return res.status(200).json({
-                    ok: true,
-                    resp: 200,
-                    msg: `Success: Se a {blnActivo === 'true'? 'activado': 'desactivado'} la persona correctamente.`,
-                    cont: {
-                            personaActualizado
-                    }
-                });
+        if (!tiendaActualizada) {
+            return res.status(400).json({
+                ok: false,
+                resp: 400,
+                msg: 'Error: Al intentar eliminar la tienda.',
+                cont: 0
+            });
+        } else {
+            return res.status(200).json({
+                ok: true,
+                resp: 200,
+                msg: `Success: Se a ${blnActivo === 'true'? 'activado': 'desactivado'} la tienda correctamente.`,
+                cont: {
+                    tiendaActualizada
+                }
+            });
+        }
+
+
+    } catch (err) {
+        res.status(500).send({
+            estatus: '500',
+            err: true,
+            msg: 'Error: Error al eliminar a la tienda.',
+            cont: {
+                err: Object.keys(err).length === 0 ? err.message : err
             }
-
-
-          } catch (err) {
-              res.status(500).send({
-                  estatus: '500',
-                  err: true,
-                msg: 'Error: Error al eliminar la persona.',
-                  cont: {
-                    err: Ocject.keys(err).length === 0 ? err.message : err
-            }    
         });
-    }           
+    }
+
 });
 
-module.exports = app; 
+
+module.exports = app;

@@ -7,10 +7,10 @@ const userSchema = new Schema({
         type: String,
         required: [true, 'Favor de insertar el nombre.']
     },
-    srtrApellidos: {
+    strApellidos: {
         type: String,
         required: [true, 'Favor de insertar sus apellidos.']
-    },    
+    },
     nmbEdad: {
         type: Number,
         required: [true, 'Favor de insertar su edad.']
@@ -19,11 +19,19 @@ const userSchema = new Schema({
         type: String,
         required: [true, 'Favor de insertar su correo.']
     },
+    strPais: {
+        type: String,
+        required: [true, 'Favor de insertar su pais.']
+    },
+    strCurp: {
+        type: String,
+        required: [true, 'Favor de insertar su curp.']
+    },
     strDireccion: String,
     strTelefono: String,
-    idMascota: {
+    idObjeto: {
         type: Schema.Types.ObjectId,
-        ref: 'Mascota',
+        ref: 'Objeto',
     },
     blnActivo: {
         type: Boolean,

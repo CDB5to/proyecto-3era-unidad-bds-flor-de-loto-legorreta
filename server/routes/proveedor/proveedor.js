@@ -1,26 +1,24 @@
 /*jshint esversion: 9*/
-const UsuarioModel = require('../../models/usuario.model');
+const proveedorModel = require('../../models/proveedor.model');
 const Helper = require("../../libraries/helper");
 const express = require('express');
 const app = express();
 
-const email = require('../../libraries/email');
-
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/tienda/
 app.get('/', async(req, res) => {
     try {
-        if (req.query.idPersona) req.queryMatch._id = req.query.idPersona;
-        if (req.query.termino) req.queryMatch.$or = Helper(["strNombre", "strCorreo"], req.query.termino);
+        if (req.query.idProveedor) req.queryMatch._id = req.query.idProveedor;
+        if (req.query.termino) req.queryMatch.$or = Helper(["idPersona", "strEmpresa", "strDireccionEmpresa"], req.query.termino);
 
-        const usuario = await UsuarioModel.find({...req.queryMatch }).populate({ path: 'idMascota', select: { 'strNombre': 1, '_id': 0 } });
+        const proveedor = await proveedorModel.find({...req.queryMatch });
 
-        if (usuario.length <= 0) {
+        if (proveedor.length <= 0) {
             res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'No se encontraron usuarios en la base de datos.',
+                msg: 'No se encontraron provedores en la base de datos.',
                 cont: {
-                    usuario
+                    proveedor
                 }
             });
         } else {
@@ -29,7 +27,7 @@ app.get('/', async(req, res) => {
                 err: false,
                 msg: 'Informacion obtenida correctamente.',
                 cont: {
-                    usuario
+                    proveedor
                 }
             });
         }
@@ -37,7 +35,7 @@ app.get('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al obtener a los usuarios.',
+            msg: 'Error al obtener los proveedores.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -45,53 +43,50 @@ app.get('/', async(req, res) => {
     }
 });
 
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/tienda/
 app.post('/', async(req, res) => {
 
     try {
-        const user = new UsuarioModel(req.body);
+        const proveedor = new proveedorModel(req.body);
 
-        let err = user.validateSync();
+        let err = proveedor.validateSync();
 
         if (err) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Error al Insertar el usuario.',
+                msg: 'Error: Error al Insertar el proveedor.',
                 cont: {
                     err
                 }
             });
         }
 
-        const usuarioEncontrado = await UsuarioModel.findOne({ strCorreo: { $regex: `^${user.strCorreo}$`, $options: 'i' } });
-        if (usuarioEncontrado) return res.status(400).json({
+        const proveedorEncontrado = await proveedorModel.findOne({ strEmpresa: { $regex: `^${proveedor.strEmpresa}$`, $options: 'i' } });
+        if (proveedorEncontrado) return res.status(400).json({
             ok: false,
             resp: 400,
-            msg: 'El correo del usuario que desea registrar ya se encuentra en uso.',
-            cont: {
-                Correo: usuarioEncontrado.strCorreo
-            }
+            msg: `El proveedor que se desea insertar con el id ${proveedor.idPersona} ya se encuentra registrado en la base de datos.`,
+            cont: 0
         });
 
-        const usuario = await user.save();
-        if (usuario.length <= 0) {
+        const nuevoProveedor = await proveedor.save();
+        if (nuevoProveedor.length <= 0) {
             res.status(400).send({
                 estatus: '400',
                 err: true,
-                msg: 'No se pudo registrar el usuario en la base de datos.',
+                msg: 'No se pudo registrar el proveedor en la base de datos.',
                 cont: {
-                    usuario
+                    nuevoProveedor
                 }
             });
         } else {
-            email.sendEmail(req.body.strCorreo);
             res.status(200).send({
                 estatus: '200',
                 err: false,
                 msg: 'Informacion insertada correctamente.',
                 cont: {
-                    usuario
+                    nuevoProveedor
                 }
             });
         }
@@ -99,7 +94,7 @@ app.post('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al registrar al usuario.',
+            msg: 'Error al registrar el proveedor.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -107,13 +102,13 @@ app.post('/', async(req, res) => {
     }
 });
 
-// http://localhost:3000/api/usuario/?idPersona=603939becf1db633f87595b2
+// http://localhost:3000/api/tienda/?idTienda=603e51f51a35a066388f0f28
 app.put('/', async(req, res) => {
     try {
 
-        const idPersona = req.query.idPersona;
+        const idProveedor = req.query.idProveedor;
 
-        if (idPersona == '') {
+        if (idProveedor == '') {
             return res.status(400).send({
                 estatus: '400',
                 err: true,
@@ -122,49 +117,49 @@ app.put('/', async(req, res) => {
             });
         }
 
-        req.body._id = idPersona;
+        req.body._id = idProveedor;
 
-        const personaEncontrada = await UsuarioModel.findById(idPersona);
+        const proveedorEncontrado = await proveedorModel.findById(idProveedor);
 
-        if (!personaEncontrada)
+        if (!proveedorEncontrado)
             return res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'Error: No se encontro la persona en la base de datos.',
-                cont: personaEncontrada
+                msg: 'Error: No se encontro el proveedor en la base de datos.',
+                cont: proveedorEncontrado
             });
 
-        const newPersona = new UsuarioModel(req.body);
+        const newProveedor = new proveedorModel(req.body);
 
-        let err = newPersona.validateSync();
+        let err = newProveedor.validateSync();
 
         if (err) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Error al Insertar la persona.',
+                msg: 'Error: Error al actualizar el proveedor.',
                 cont: {
                     err
                 }
             });
         }
 
-        const personaActualizada = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: newPersona }, { new: true });
+        const proveedorActualizado = await proveedorModel.findByIdAndUpdate(idProveedor, { $set: newProveedor }, { new: true });
 
-        if (!personaActualizada) {
+        if (!proveedorActualizado) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Al intentar actualizar la persona.',
+                msg: 'Error: Error al intentar actualizar el proveedor.',
                 cont: 0
             });
         } else {
             return res.status(200).json({
                 ok: true,
                 resp: 200,
-                msg: 'Success: Se actualizo la persona correctamente.',
+                msg: 'Success: Se actualizo el proveedor de manera correcta.',
                 cont: {
-                    personaActualizada
+                    proveedorActualizado
                 }
             });
         }
@@ -173,7 +168,7 @@ app.put('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error: Error al actualizar la persona.',
+            msg: 'Error: Error al actualizar el proveedor.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -181,12 +176,12 @@ app.put('/', async(req, res) => {
     }
 });
 
-// http://localhost:3000/api/usuario/?idPersona=603939becf1db633f87595b2
+// http://localhost:3000/api/tienda/?idTienda=603e51f51a35a066388f0f28
 app.delete('/', async(req, res) => {
 
     try {
 
-        if (req.query.idPersona == '') {
+        if (req.query.idProveedor == '') {
             return res.status(400).send({
                 estatus: '400',
                 err: true,
@@ -195,35 +190,35 @@ app.delete('/', async(req, res) => {
             });
         }
 
-        idPersona = req.query.idPersona;
+        idProveedor = req.query.idProveedor;
         blnActivo = req.body.blnActivo;
 
-        const personaEncontrada = await UsuarioModel.findById(idPersona);
+        const proveedorEncontrado = await proveedorModel.findById(idProveedor);
 
-        if (!personaEncontrada)
+        if (!proveedorEncontrado)
             return res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'Error: No se encontro la persona en la base de datos.',
-                cont: personaEncontrada
+                msg: 'Error: No se encontro el proveedor en la base de datos.',
+                cont: proveedorEncontrado
             });
 
-        const personaActualizada = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: { blnActivo } }, { new: true });
+        const proveedorActualizado = await proveedorModel.findByIdAndUpdate(idProveedor, { $set: { blnActivo } }, { new: true });
 
-        if (!personaActualizada) {
+        if (!proveedorActualizado) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Al intentar eliminar la persona.',
+                msg: 'Error: Error al intentar eliminar el proveedor.',
                 cont: 0
             });
         } else {
             return res.status(200).json({
                 ok: true,
                 resp: 200,
-                msg: `Success: Se a ${blnActivo === 'true'? 'activado': 'desactivado'} la persona correctamente.`,
+                msg: `Success: Se a ${blnActivo === 'true'? 'activado': 'desactivado'} el poveedor correctamente.`,
                 cont: {
-                    personaActualizada
+                    proveedorActualizado
                 }
             });
         }
@@ -233,7 +228,7 @@ app.delete('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error: Error al eliminar a la persona.',
+            msg: 'Error: Error al eliminar el proveedor.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }

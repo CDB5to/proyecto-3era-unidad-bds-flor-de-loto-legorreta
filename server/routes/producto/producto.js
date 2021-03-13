@@ -1,26 +1,25 @@
 /*jshint esversion: 9*/
-const UsuarioModel = require('../../models/usuario.model');
+const productoModel = require('../../models/producto.model');
 const Helper = require("../../libraries/helper");
 const express = require('express');
 const app = express();
 
-const email = require('../../libraries/email');
 
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/tienda/
 app.get('/', async(req, res) => {
     try {
-        if (req.query.idPersona) req.queryMatch._id = req.query.idPersona;
-        if (req.query.termino) req.queryMatch.$or = Helper(["strNombre", "strCorreo"], req.query.termino);
+        if (req.query.idProducto) req.queryMatch._id = req.query.idProducto;
+        if (req.query.termino) req.queryMatch.$or = Helper(["strNombre", "strDescripcion"], req.query.termino);
 
-        const usuario = await UsuarioModel.find({...req.queryMatch }).populate({ path: 'idMascota', select: { 'strNombre': 1, '_id': 0 } });
+        const producto = await productoModel.find({...req.queryMatch });
 
-        if (usuario.length <= 0) {
+        if (producto.length <= 0) {
             res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'No se encontraron usuarios en la base de datos.',
+                msg: 'No se encontraron productos en la base de datos.',
                 cont: {
-                    usuario
+                    producto
                 }
             });
         } else {
@@ -29,7 +28,7 @@ app.get('/', async(req, res) => {
                 err: false,
                 msg: 'Informacion obtenida correctamente.',
                 cont: {
-                    usuario
+                    producto
                 }
             });
         }
@@ -37,7 +36,7 @@ app.get('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al obtener a los usuarios.',
+            msg: 'Error al obtener los productos.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -45,53 +44,50 @@ app.get('/', async(req, res) => {
     }
 });
 
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/tienda/
 app.post('/', async(req, res) => {
 
     try {
-        const user = new UsuarioModel(req.body);
+        const producto = new productoModel(req.body);
 
-        let err = user.validateSync();
+        let err = producto.validateSync();
 
         if (err) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Error al Insertar el usuario.',
+                msg: 'Error: Error al Insertar el producto.',
                 cont: {
                     err
                 }
             });
         }
 
-        const usuarioEncontrado = await UsuarioModel.findOne({ strCorreo: { $regex: `^${user.strCorreo}$`, $options: 'i' } });
-        if (usuarioEncontrado) return res.status(400).json({
+        const productoEncontrado = await productoModel.findOne({ strDescripcion: { $regex: `^${producto.strDescripcion}$`, $options: 'i' } });
+        if (productoEncontrado) return res.status(400).json({
             ok: false,
             resp: 400,
-            msg: 'El correo del usuario que desea registrar ya se encuentra en uso.',
-            cont: {
-                Correo: usuarioEncontrado.strCorreo
-            }
+            msg: `El producto que se desea insertar con la descripcion ${producto.strDescripcion} ya se encuentra registrada en la base de datos.`,
+            cont: 0
         });
 
-        const usuario = await user.save();
-        if (usuario.length <= 0) {
+        const nuevoproducto = await producto.save();
+        if (nuevoproducto.length <= 0) {
             res.status(400).send({
                 estatus: '400',
                 err: true,
-                msg: 'No se pudo registrar el usuario en la base de datos.',
+                msg: 'No se pudo registrar el producto.',
                 cont: {
-                    usuario
+                    nuevoproducto
                 }
             });
         } else {
-            email.sendEmail(req.body.strCorreo);
             res.status(200).send({
                 estatus: '200',
                 err: false,
-                msg: 'Informacion insertada correctamente.',
+                msg: 'Informacion insertada de manera correcta.',
                 cont: {
-                    usuario
+                    nuevoproducto
                 }
             });
         }
@@ -99,7 +95,7 @@ app.post('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al registrar al usuario.',
+            msg: 'Error al registrar el producto.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -107,13 +103,13 @@ app.post('/', async(req, res) => {
     }
 });
 
-// http://localhost:3000/api/usuario/?idPersona=603939becf1db633f87595b2
+// http://localhost:3000/api/tienda/?idTienda=603e51f51a35a066388f0f28
 app.put('/', async(req, res) => {
     try {
 
-        const idPersona = req.query.idPersona;
+        const idProducto = req.query.idProducto;
 
-        if (idPersona == '') {
+        if (idProducto == '') {
             return res.status(400).send({
                 estatus: '400',
                 err: true,
@@ -122,49 +118,49 @@ app.put('/', async(req, res) => {
             });
         }
 
-        req.body._id = idPersona;
+        req.body._id = idProducto;
 
-        const personaEncontrada = await UsuarioModel.findById(idPersona);
+        const productoEncontrado = await productoModel.findById(idProducto);
 
-        if (!personaEncontrada)
+        if (!productoEncontrado)
             return res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'Error: No se encontro la persona en la base de datos.',
-                cont: personaEncontrada
+                msg: 'Error: No se encontro el producto en la base de datos.',
+                cont: productoEncontrado
             });
 
-        const newPersona = new UsuarioModel(req.body);
+        const newProducto = new productoModel(req.body);
 
-        let err = newPersona.validateSync();
+        let err = newProducto.validateSync();
 
         if (err) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Error al Insertar la persona.',
+                msg: 'Error: Error al actualizar el producto.',
                 cont: {
                     err
                 }
             });
         }
 
-        const personaActualizada = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: newPersona }, { new: true });
+        const productoActualizado = await productoModel.findByIdAndUpdate(idProducto, { $set: newProducto }, { new: true });
 
-        if (!personaActualizada) {
+        if (!productoActualizado) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Al intentar actualizar la persona.',
+                msg: 'Error: Error al intentar actualizar el producto.',
                 cont: 0
             });
         } else {
             return res.status(200).json({
                 ok: true,
                 resp: 200,
-                msg: 'Success: Se actualizo la persona correctamente.',
+                msg: 'Success: Se actualizo el producto correctamente.',
                 cont: {
-                    personaActualizada
+                    productoActualizado
                 }
             });
         }
@@ -173,7 +169,7 @@ app.put('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error: Error al actualizar la persona.',
+            msg: 'Error: Error al actualizar el producto.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -181,49 +177,49 @@ app.put('/', async(req, res) => {
     }
 });
 
-// http://localhost:3000/api/usuario/?idPersona=603939becf1db633f87595b2
+// http://localhost:3000/api/tienda/?idTienda=603e51f51a35a066388f0f28
 app.delete('/', async(req, res) => {
 
     try {
 
-        if (req.query.idPersona == '') {
+        if (req.query.idProducto == '') {
             return res.status(400).send({
                 estatus: '400',
                 err: true,
-                msg: 'Error: No se envio un id valido.',
+                msg: 'Error: El id enviado no es valido.',
                 cont: 0
             });
         }
 
-        idPersona = req.query.idPersona;
+        idProducto = req.query.idProducto;
         blnActivo = req.body.blnActivo;
 
-        const personaEncontrada = await UsuarioModel.findById(idPersona);
+        const productoEncontrado = await productoModel.findById(idProducto);
 
-        if (!personaEncontrada)
+        if (!productoEncontrado)
             return res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'Error: No se encontro la persona en la base de datos.',
-                cont: personaEncontrada
+                msg: 'Error: No se encontro el producto en la base de datos.',
+                cont: productoEncontrado
             });
 
-        const personaActualizada = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: { blnActivo } }, { new: true });
+        const productoActualizado = await productoModel.findByIdAndUpdate(idProducto, { $set: { blnActivo } }, { new: true });
 
-        if (!personaActualizada) {
+        if (!productoActualizado) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Al intentar eliminar la persona.',
+                msg: 'Error: Error al intentar eliminar el producto.',
                 cont: 0
             });
         } else {
             return res.status(200).json({
                 ok: true,
                 resp: 200,
-                msg: `Success: Se a ${blnActivo === 'true'? 'activado': 'desactivado'} la persona correctamente.`,
+                msg: `Success: Se a ${blnActivo === 'true'? 'activado': 'desactivado'} el producto correctamente.`,
                 cont: {
-                    personaActualizada
+                    productoActualizado
                 }
             });
         }
@@ -233,7 +229,7 @@ app.delete('/', async(req, res) => {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error: Error al eliminar a la persona.',
+            msg: 'Error: Error al eliminar el producto.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }

@@ -1,26 +1,68 @@
 /*jshint esversion: 9*/
+const TiendaModel = require('../../models/tienda.model');
+const CompraModel = require('../../models/compra.model');
 const UsuarioModel = require('../../models/usuario.model');
-const Helper = require("../../libraries/helper");
 const express = require('express');
 const app = express();
 
-const email = require('../../libraries/email');
 
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/compra/?idTienda=603e51f51a35a066388f0f28
 app.get('/', async(req, res) => {
+
     try {
-        if (req.query.idUsuario) req.queryMatch._id = req.query.idUsuario;
-        if (req.query.termino) req.queryMatch.$or = Helper(["strNombre", "strCorreo"], req.query.termino);
 
-        const usuario = await UsuarioModel.find({...req.queryMatch }).populate({ path: 'idMascota', select: { 'strNombre': 1, '_id': 0 } });
+        let idCompra = '';
 
-        if (usuario.length <= 0) {
+        const idTienda = req.query.idTienda;
+
+        if (req.query.idCompra)
+            idCompra = req.query.idCompra;
+
+        let queryFind = {};
+        let queryOptions = {};
+
+        if (idCompra) {
+            queryFind = {
+                '_id': idTienda,
+                'ajsnCompra': {
+                    $elemMatch: {
+                        '_id': idCompra
+                    }
+                }
+            };
+            queryOptions = { 'ajsnCompra.$': 1 };
+        } else {
+            queryFind = {
+                '_id': idTienda
+            };
+            queryOptions = {};
+        }
+
+        if (idTienda == undefined) {
+            return res.status(400).send({
+                estatus: '400',
+                err: true,
+                msg: 'Error: No se envio un id valido.',
+                cont: 0
+            });
+        }
+
+        const compra = await TiendaModel.find(queryFind, queryOptions);
+        let usuario = '';
+        let infoFinal = {};
+        for (const info of compra) {
+            for (const compra of info.ajsnCompra) {
+                usuario = await UsuarioModel.findById(compra.idPersona);
+            }
+        }
+
+        if (compra.length <= 0) {
             res.status(404).send({
                 estatus: '404',
                 err: true,
-                msg: 'No se encontraron usuarios en la base de datos.',
+                msg: 'No se encontraron compras en la base de datos.',
                 cont: {
-                    usuario
+                    compra
                 }
             });
         } else {
@@ -29,77 +71,98 @@ app.get('/', async(req, res) => {
                 err: false,
                 msg: 'Informacion obtenida correctamente.',
                 cont: {
-                    usuario
+                    compra
                 }
             });
         }
+
     } catch (err) {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al obtener a los usuarios.',
+            msg: 'Error al obtener las compras.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
         });
     }
+
+
 });
 
-// http://localhost:3000/api/usuario/
+// http://localhost:3000/api/compra/?idTienda=603e51f51a35a066388f0f28
 app.post('/', async(req, res) => {
 
     try {
-        const user = new UsuarioModel(req.body);
+        const idTienda = req.query.idTienda;
 
-        let err = user.validateSync();
+        if (idTienda == undefined) {
+            return res.status(400).send({
+                estatus: '400',
+                err: true,
+                msg: 'Error: No se envio un id valido.',
+                cont: 0
+            });
+        }
+
+        const compra = new CompraModel(req.body);
+        let err = compra.validateSync();
 
         if (err) {
             return res.status(400).json({
                 ok: false,
                 resp: 400,
-                msg: 'Error: Error al Insertar el usuario.',
+                msg: 'Error: Error al Insertar la compra.',
                 cont: {
                     err
                 }
             });
         }
 
-        const usuarioEncontrado = await UsuarioModel.findOne({ strCorreo: { $regex: `^${user.strCorreo}$`, $options: 'i' } });
-        if (usuarioEncontrado) return res.status(400).json({
-            ok: false,
-            resp: 400,
-            msg: 'El correo del usuario que desea registrar ya se encuentra en uso.',
-            cont: {
-                Correo: usuarioEncontrado.strCorreo
-            }
-        });
+        const productoDisponible = await TiendaModel.findOne({ _id: idTienda, arrProducto: compra.idProducto });
 
-        const usuario = await user.save();
-        if (usuario.length <= 0) {
-            res.status(400).send({
-                estatus: '400',
+        if (productoDisponible == null) {
+            return res.status(404).send({
+                estatus: '404',
                 err: true,
-                msg: 'No se pudo registrar el usuario en la base de datos.',
-                cont: {
-                    usuario
-                }
+                msg: 'Error: no se encontro el producto.',
+                cont: 0
             });
         } else {
-            // email.sendEmail(req.body.strCorreo);
-            res.status(200).send({
-                estatus: '200',
-                err: false,
-                msg: 'Informacion insertada correctamente.',
-                cont: {
-                    usuario
-                }
-            });
+            const rmvProducto = await TiendaModel.findByIdAndUpdate(idTienda, { $pull: { arrInventario: compra.idAnimalito } }, { new: true });
+            if (rmvProducto == null) {
+                return res.status(400).send({
+                    estatus: '400',
+                    err: true,
+                    msg: 'Error: no se pudo quitar el producto del array de inventario.',
+                    cont: 0
+                });
+            }
+            const nuevaCompra = await TiendaModel.findByIdAndUpdate(idTienda, { $push: { 'ajsnCompra': compra } }, { new: true });
+
+            if (nuevaCompra.length <= 0) {
+                res.status(400).send({
+                    estatus: '400',
+                    err: true,
+                    msg: 'No se pudo registrar la compra en la base de datos.',
+                    cont: 0
+                });
+            } else {
+                res.status(200).send({
+                    estatus: '200',
+                    err: false,
+                    msg: 'Informacion insertada de manera correcta.',
+                    cont: {
+                        compra
+                    }
+                });
+            }
         }
     } catch (err) {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error al registrar al usuario.',
+            msg: 'Error al registrar la compra.',
             cont: {
                 err: Object.keys(err).length === 0 ? err.message : err
             }
@@ -107,138 +170,122 @@ app.post('/', async(req, res) => {
     }
 });
 
+// http://localhost:3000/api/compra/?idTienda=603e51f51a35a066388f0f28&idCompra=603e5d996dcc7c2108734283
 app.put('/', async(req, res) => {
+
     try {
 
-        const idAnimalito = req.query.idPersona;
+        const idTienda = req.query.idTienda;
+        const idCompra = req.query.idCompra;
 
-        if(req.query.idPersona == '') {    
+        if (idTienda == undefined || idCompra == undefined) {
+            return res.status(400).send({
+                estatus: '400',
+                err: true,
+                msg: 'Error: No se envio un id valido.',
+                cont: 0
+            });
+        }
 
-        return res.status(400).send({
-            estatus: '400',
-            err: true,
-            msg: 'Error: No se envió un id valido.',
-            cont: 0
-        });
-    } 
-    
-        req.body._id = idPersona;
+        req.body._id = idCompra;
 
-        const personaEncontrada = await MascotaModel.findById(idAnimalito);
+        const compra = new CompraModel(req.body);
+        let err = compra.validateSync();
 
-        if(!personaEncontrada)
-        return res.status(404).send({
-            estatus: '404',
-            err: true,
-msg: 'Error: No se encontro la persona en la base de datos.',
-            cont: personaEncontrada
-        });
-
-    const newPersona = new UsuarioModel(req.body);        
-
-            let err = newPersona.validate.Sync();
-        
-            if (err) {
+        if (err) {
             return res.status(400).json({
-            ok: false,
-            resp: 400,
-            msg: 'Error: Error al insertar la persona.',
-            cont: {
-                err
-            }
-        });    
-    }
+                ok: false,
+                resp: 400,
+                msg: 'Error: Error al actualizar la compra.',
+                cont: {
+                    err
+                }
+            });
+        }
 
-    const personaActualizada = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: newPersona }, {new: true });
+        const nuevaCompra = await TiendaModel.findOneAndUpdate({ '_id': idTienda, 'ajsnCompra._id': idCompra }, { $set: { 'ajsnCompra.$[i]': compra } }, { arrayFilters: [{ 'i._id': idCompra }], new: true });
 
-    if(!personaActualizado) {
-        return res.status(400).json({
-            ok: false,
-            resp: 400,
-            msg: 'Error: Al intentar actualizar la persona.',
-            cont: 0
-         });    
-    } else {
-        return res.status(200).json({
-            ok: true,
-            resp: 200,
-            msg: 'Success: Se actualizo la persona correctamente.',
-            cont: {
-                personaActualizado
-            }
-        });
-    }
+        if (nuevaCompra.length <= 0) {
+            res.status(400).send({
+                estatus: '400',
+                err: true,
+                msg: 'No se pudo actualizar la compra en la base de datos.',
+                cont: 0
+            });
+        } else {
+            res.status(200).send({
+                estatus: '200',
+                err: false,
+                msg: 'Informacion actualizada de manera correcta.',
+                cont: {
+                    compra
+                }
+            });
+        }
 
     } catch (err) {
         res.status(500).send({
             estatus: '500',
             err: true,
-            msg: 'Error: Error al actualizar la persona.',
+            msg: 'Error al actualizar la compra.',
             cont: {
-                err: Ocject.keys(err).length === 0 ? err.message : err
-            }    
+                err: Object.keys(err).length === 0 ? err.message : err
+            }
         });
     }
+
 });
 
+// http://localhost:3000/api/compra/?idTienda=603e51f51a35a066388f0f28&idCompra=603e5d996dcc7c2108734283
 app.delete('/', async(req, res) => {
 
     try {
 
-        if(req.query.idPersona == '') {
+        const idTienda = req.query.idTienda;
+        const idCompra = req.query.idCompra;
+        const blnActivo = req.body.blnActivo;
+
+        if (idTienda == undefined || idCompra == undefined) {
             return res.status(400).send({
                 estatus: '400',
                 err: true,
-                msg: 'Error: No se envió un id valido.',
+                msg: 'Error: No se envio un id valido.',
                 cont: 0
             });
-        } 
-        
-        idPersona = rea.query.idPersona;
-    
-        binActivo = req.body.binActivo;
+        }
 
-            const personaEncontrada = await UsuarioModel.findById(idPersona);
-    
-            if(!personaEncontrada)
-            return res.status(404).send({
-                estatus: '404',
+
+        const nuevaCompra = await TiendaModel.findOneAndUpdate({ '_id': idTienda, 'ajsnCompra._id': idCompra }, { $set: { 'ajsnCompra.$.blnActivo': blnActivo } }, { new: true });
+
+        if (nuevaCompra.length <= 0) {
+            res.status(400).send({
+                estatus: '400',
                 err: true,
-                msg: 'Error: No se encontro la mascota en la base de datos.',
-                cont: personaEncontrada
+                msg: 'No se pudo eliminar la compra en la base de datos.',
+                cont: 0
             });
+        } else {
+            res.status(200).send({
+                estatus: '200',
+                err: false,
+                msg: 'Informacion eliminada de manera correcta.',
+                cont: {
+                    nuevaCompra
+                }
+            });
+        }
 
-    const personaActualizado = await UsuarioModel.findByIdAndUpdate(idPersona, { $set: { binActivo }}, { new: true });
-
-          if (!personaActualizado) {
-                return res.status(400).json({
-                    ok: false,
-                    resp: 400,
-                    msg: 'Error: Al intentar eliminar la persona.',
-                    cont: 0
-                });
-            } else {
-                return res.status(200).json({
-                    ok: true,
-                    resp: 200,
-                    msg: `Success: Se a {blnActivo === 'true'? 'activado': 'desactivado'} la persona correctamente.`,
-                    cont: {
-                            personaActualizado
-                    }
-                });
+    } catch (err) {
+        res.status(500).send({
+            estatus: '500',
+            err: true,
+            msg: 'Error al actualizar la compra.',
+            cont: {
+                err: Object.keys(err).length === 0 ? err.message : err
             }
-
-
-          } catch (err) {
-              res.status(500).send({
-                  estatus: '500',
-                  err: true,
-                msg: 'Error: Error al eliminar la mascota.',
-                  cont: {
-                    err: Ocject.keys(err).length === 0 ? err.message : err
-            }    
         });
-    }           
+    }
+
 });
 
-module.exports = app; 
+module.exports = app;
